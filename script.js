@@ -1,8 +1,12 @@
-// A CHAVE DA TMDb API (V3)
+// =========================================================
+// VARIÁVEIS DE CONFIGURAÇÃO DA API
+// =========================================================
 const API_KEY = "8a14efd4f5827752c0ce72562a8881bc"; 
 const API_BASE_URL = "https://api.themoviedb.org/3";
 
-// Elementos do DOM
+// =========================================================
+// ELEMENTOS DO DOM
+// =========================================================
 const termoBuscaInput = document.getElementById("termoBusca");
 const botaoBusca = document.getElementById("botaoBusca");
 const botaoFiltrar = document.getElementById("botaoFiltrar");
@@ -16,16 +20,21 @@ const filtroAnoInput = document.getElementById("filtroAno");
 const filtroGeneroSelect = document.getElementById("filtroGenero");
 const filtroIdiomaSelect = document.getElementById("filtroIdioma");
 
-// Variáveis de estado
+// =========================================================
+// VARIÁVEIS DE ESTADO
+// =========================================================
 let termoBusca = "";
 let paginaAtual = 1;
 let totalResultados = 0;
-let modoBusca = 'SEARCH'; // Pode ser 'SEARCH' ou 'DISCOVER'
+let modoBusca = 'DISCOVER'; // Define o modo inicial como 'DISCOVER'
 
 // =========================================================
-// 1. FUNÇÃO PARA CARREGAR GÊNEROS (Inicialização)
+// 1. FUNÇÕES DE INICIALIZAÇÃO E GÊNEROS
 // =========================================================
 
+/**
+ * Busca a lista de gêneros na API do TMDb e popula o <select>
+ */
 async function carregarGeneros() {
     const url = `${API_BASE_URL}/genre/movie/list?api_key=${API_KEY}&language=pt-BR`;
     try {
@@ -45,30 +54,28 @@ async function carregarGeneros() {
     }
 }
 
-// Chamar a função para carregar gêneros ao iniciar
-carregarGeneros();
-
-
 // =========================================================
-// 2. EVENT LISTENERS
+// 2. LÓGICA DE EXECUÇÃO DA BUSCA
 // =========================================================
 
-// Ação do botão de busca por termo
-botaoBusca.addEventListener("click", () => {
+/**
+ * Função para iniciar a busca no modo "SEARCH" (por texto)
+ */
+function executarBuscaPorTermo() {
     termoBusca = termoBuscaInput.value.trim();
     if (termoBusca.length === 0) {
-        // Se a busca está vazia, força o modo DISCOVER/FILTRAR
+        // Se a busca está vazia, usa o modo filtro
         executarBuscaComFiltros();
         return;
     }
     modoBusca = 'SEARCH';
     paginaAtual = 1;
     buscarFilmes();
-});
+}
 
-// Ação do botão de filtros
-botaoFiltrar.addEventListener("click", executarBuscaComFiltros);
-
+/**
+ * Função para iniciar a busca no modo "DISCOVER" (por filtros ou popularidade)
+ */
 function executarBuscaComFiltros() {
     // Limpa a busca textual para garantir que o modo filtro funcione
     termoBuscaInput.value = ""; 
@@ -76,25 +83,7 @@ function executarBuscaComFiltros() {
     
     modoBusca = 'DISCOVER';
     paginaAtual = 1;
-    buscarFilmes();
-}
-
-// Ação dos botões de paginação
-btnAnterior.addEventListener("click", () => {
-    if (paginaAtual > 1) {
-        paginaAtual--;
-        buscarFilmes();
-    }
-});
-
-btnProxima.addEventListener("click", () => {
-    const totalPaginas = Math.ceil(totalResultados / 20); // 20 resultados por página no TMDb
-    if (paginaAtual < totalPaginas) {
-        paginaAtual++;
-        buscarFilmes();
-    }
-});
-
+    buscarFilmes();}
 
 // =========================================================
 // 3. FUNÇÃO PRINCIPAL DE BUSCA COM LÓGICA DE FILTRO
@@ -108,7 +97,7 @@ async function buscarFilmes() {
     let url_endpoint;
     let url_params;
     
-    // Define se vamos usar o endpoint de Busca (Search) ou Descoberta (Discover)
+    // Define se o endpoint será de Busca (Search) ou Descoberta (Discover)
     if (modoBusca === 'SEARCH' && termoBusca) {
         // MODO BUSCA (por nome)
         url_endpoint = `${API_BASE_URL}/search/movie`;
@@ -129,8 +118,9 @@ async function buscarFilmes() {
         
         url_params = filtro_string;
 
-        // Adiciona um parâmetro para ordenar por popularidade se nenhum filtro específico foi aplicado
-        if (!ano && !genero && !idioma) {
+        // Parâmetro padrão para popularidade se nenhum filtro específico foi aplicado
+        if (modoBusca === 'DISCOVER' || (!ano && !genero && !idioma)) {
+             // Sempre ordena por popularidade no modo DISCOVER
             url_params += "&sort_by=popularity.desc";
         }
     }
@@ -147,7 +137,18 @@ async function buscarFilmes() {
             
             exibirFilmes(dados.results);
 
-            const textoBusca = termoBusca ? `para "${termoBusca}"` : `com filtros aplicados`;
+            // Mensagem de status customizada
+            let textoBusca;
+            if (modoBusca === 'SEARCH') {
+                textoBusca = `para "${termoBusca}"`;
+            } else {
+                 textoBusca = `com filtros aplicados (Populares)`;
+                 // Caso o usuário queira saber o filtro aplicado
+                 if (filtroAnoInput.value || filtroGeneroSelect.value || filtroIdiomaSelect.value) {
+                     textoBusca = `com filtros: Ano=${filtroAnoInput.value || 'Todos'}, Gênero=${filtroGeneroSelect.options[filtroGeneroSelect.selectedIndex].text}, Idioma=${filtroIdiomaSelect.value || 'Todos'}`;
+                 }
+            }
+            
             mensagemStatus.textContent = `✅ Página ${paginaAtual} — ${dados.results.length} resultados de ${totalResultados} ${textoBusca}`;
             
             atualizarPaginacao(totalResultados, paginaAtual);
@@ -165,7 +166,7 @@ async function buscarFilmes() {
 
 
 // =========================================================
-// 4. FUNÇÕES DE EXIBIÇÃO E PAGINAÇÃO (Mantidas)
+// 4. FUNÇÕES DE EXIBIÇÃO E PAGINAÇÃO
 // =========================================================
 
 function exibirFilmes(filmes) {
@@ -207,3 +208,40 @@ function desabilitarBotoesPaginacao(anterior, proxima) {
     btnAnterior.disabled = anterior;
     btnProxima.disabled = proxima;
 }
+
+
+// =========================================================
+// 5. EVENT LISTENERS GERAIS E INICIALIZAÇÃO
+// =========================================================
+
+// Botão Busca (por termo)
+botaoBusca.addEventListener("click", executarBuscaPorTermo);
+
+// Botão Filtrar
+botaoFiltrar.addEventListener("click", executarBuscaComFiltros);
+
+// Paginação
+btnAnterior.addEventListener("click", buscarFilmes);
+btnProxima.addEventListener("click", buscarFilmes);
+
+
+// Adiciona a funcionalidade de buscar quando a tecla ENTER é pressionada
+termoBuscaInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+        executarBuscaPorTermo();
+    }
+});
+
+filtroAnoInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+        executarBuscaComFiltros();
+    }
+});
+
+
+// Função principal que roda ao carregar a página
+document.addEventListener("DOMContentLoaded", () => {
+    carregarGeneros();
+    // Inicia a busca (modo DISCOVER/Populares) para mostrar algo na tela
+    buscarFilmes(); 
+});
