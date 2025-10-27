@@ -1,112 +1,187 @@
 // A CHAVE DA TMDb API (V3)
 const API_KEY = "8a14efd4f5827752c0ce72562a8881bc"; 
-// URL BASE do TMDb para busca: usa 'search/movie' e o parâmetro 'query'
-const URL_BASE = `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&language=pt-BR&query=`;
+const API_BASE_URL = "https://api.themoviedb.org/3";
 
 // Elementos do DOM
 const termoBuscaInput = document.getElementById("termoBusca");
 const botaoBusca = document.getElementById("botaoBusca");
+const botaoFiltrar = document.getElementById("botaoFiltrar");
 const listaResultados = document.getElementById("listaResultados");
 const mensagemStatus = document.getElementById("mensagemStatus");
 const btnAnterior = document.getElementById("btnAnterior");
 const btnProxima = document.getElementById("btnProxima");
 
+// Elementos de Filtro
+const filtroAnoInput = document.getElementById("filtroAno");
+const filtroGeneroSelect = document.getElementById("filtroGenero");
+const filtroIdiomaSelect = document.getElementById("filtroIdioma");
+
 // Variáveis de estado
 let termoBusca = "";
 let paginaAtual = 1;
 let totalResultados = 0;
+let modoBusca = 'SEARCH'; // Pode ser 'SEARCH' ou 'DISCOVER'
 
-// ===== EVENT LISTENERS =====
+// =========================================================
+// 1. FUNÇÃO PARA CARREGAR GÊNEROS (Inicialização)
+// =========================================================
 
-// 1. Ação do botão de busca
+async function carregarGeneros() {
+    const url = `${API_BASE_URL}/genre/movie/list?api_key=${API_KEY}&language=pt-BR`;
+    try {
+        const resposta = await fetch(url);
+        const dados = await resposta.json();
+
+        if (dados.genres) {
+            dados.genres.forEach(genero => {
+                const option = document.createElement("option");
+                option.value = genero.id;
+                option.textContent = genero.name;
+                filtroGeneroSelect.appendChild(option);
+            });
+        }
+    } catch (erro) {
+        console.error("Erro ao carregar gêneros:", erro);
+    }
+}
+
+// Chamar a função para carregar gêneros ao iniciar
+carregarGeneros();
+
+
+// =========================================================
+// 2. EVENT LISTENERS
+// =========================================================
+
+// Ação do botão de busca por termo
 botaoBusca.addEventListener("click", () => {
-    // Pega o termo de busca do input
     termoBusca = termoBuscaInput.value.trim();
     if (termoBusca.length === 0) {
-        mensagemStatus.textContent = "⚠️ Por favor, digite um filme para pesquisar.";
-        listaResultados.innerHTML = "";
-        desabilitarBotoesPaginacao(true, true);
+        // Se a busca está vazia, força o modo DISCOVER/FILTRAR
+        executarBuscaComFiltros();
         return;
     }
-    paginaAtual = 1; // Sempre começa na página 1 em uma nova busca
-    buscarFilmes(termoBusca, paginaAtual);
+    modoBusca = 'SEARCH';
+    paginaAtual = 1;
+    buscarFilmes();
 });
 
-// 2. Ação dos botões de paginação
+// Ação do botão de filtros
+botaoFiltrar.addEventListener("click", executarBuscaComFiltros);
+
+function executarBuscaComFiltros() {
+    // Limpa a busca textual para garantir que o modo filtro funcione
+    termoBuscaInput.value = ""; 
+    termoBusca = ""; 
+    
+    modoBusca = 'DISCOVER';
+    paginaAtual = 1;
+    buscarFilmes();
+}
+
+// Ação dos botões de paginação
 btnAnterior.addEventListener("click", () => {
     if (paginaAtual > 1) {
         paginaAtual--;
-        buscarFilmes(termoBusca, paginaAtual);
+        buscarFilmes();
     }
 });
 
 btnProxima.addEventListener("click", () => {
-    const totalPaginas = Math.ceil(totalResultados / 20); // TMDb mostra 20 resultados por página
+    const totalPaginas = Math.ceil(totalResultados / 20); // 20 resultados por página no TMDb
     if (paginaAtual < totalPaginas) {
         paginaAtual++;
-        buscarFilmes(termoBusca, paginaAtual);
+        buscarFilmes();
     }
 });
 
 
-// ===== FUNÇÃO PRINCIPAL DE BUSCA =====
-async function buscarFilmes(termo, pagina) {
-    // Desabilita botões e mostra status de carregamento
+// =========================================================
+// 3. FUNÇÃO PRINCIPAL DE BUSCA COM LÓGICA DE FILTRO
+// =========================================================
+
+async function buscarFilmes() {
     desabilitarBotoesPaginacao(true, true);
     listaResultados.innerHTML = "";
-    mensagemStatus.textContent = "⏳ Buscando filmes no TMDb...";
+    mensagemStatus.textContent = `⏳ Buscando filmes no TMDb... (Página ${paginaAtual})`;
+
+    let url_endpoint;
+    let url_params;
+    
+    // Define se vamos usar o endpoint de Busca (Search) ou Descoberta (Discover)
+    if (modoBusca === 'SEARCH' && termoBusca) {
+        // MODO BUSCA (por nome)
+        url_endpoint = `${API_BASE_URL}/search/movie`;
+        url_params = `&query=${encodeURIComponent(termoBusca)}`;
+    } else {
+        // MODO FILTRO/DISCOVER (por filtros ou popularidade)
+        url_endpoint = `${API_BASE_URL}/discover/movie`;
+        
+        // Constrói os parâmetros dos filtros
+        const ano = filtroAnoInput.value;
+        const genero = filtroGeneroSelect.value;
+        const idioma = filtroIdiomaSelect.value;
+        
+        let filtro_string = "";
+        if (ano) filtro_string += `&primary_release_year=${ano}`;
+        if (genero) filtro_string += `&with_genres=${genero}`;
+        if (idioma) filtro_string += `&with_original_language=${idioma}`;
+        
+        url_params = filtro_string;
+
+        // Adiciona um parâmetro para ordenar por popularidade se nenhum filtro específico foi aplicado
+        if (!ano && !genero && !idioma) {
+            url_params += "&sort_by=popularity.desc";
+        }
+    }
+
+    // Monta a URL final
+    const url = `${url_endpoint}?api_key=${API_KEY}&language=pt-BR${url_params}&page=${paginaAtual}`;
 
     try {
-        // Constrói a URL com o termo de busca e a página
-        const url = `${URL_BASE}${encodeURIComponent(termo)}&page=${pagina}`;
-        
         const resposta = await fetch(url);
         const dados = await resposta.json();
 
-        // O TMDb retorna 'results' em vez de 'Search'
         if (dados.results && dados.results.length > 0) {
             totalResultados = dados.total_results;
             
-            // Mostra os filmes na tela
             exibirFilmes(dados.results);
 
-            mensagemStatus.textContent = `✅ Página ${paginaAtual} — ${dados.results.length} resultados de ${totalResultados} para "${termo}"`;
+            const textoBusca = termoBusca ? `para "${termoBusca}"` : `com filtros aplicados`;
+            mensagemStatus.textContent = `✅ Página ${paginaAtual} — ${dados.results.length} resultados de ${totalResultados} ${textoBusca}`;
             
-            // Atualiza o estado dos botões de paginação
             atualizarPaginacao(totalResultados, paginaAtual);
 
         } else {
-            // Se não houver resultados
             listaResultados.innerHTML = "";
-            mensagemStatus.textContent = `🚫 Nenhum resultado encontrado para "${termo}". Tente novamente.`;
+            const erroBusca = termoBusca ? `para "${termoBusca}"` : `com os filtros selecionados`;
+            mensagemStatus.textContent = `🚫 Nenhum resultado encontrado ${erroBusca}.`;
         }
     } catch (erro) {
         console.error("Erro na busca da API:", erro);
-        mensagemStatus.textContent = "❌ Erro ao buscar dados. Verifique sua chave de API e conexão.";
+        mensagemStatus.textContent = "❌ Erro ao buscar dados. Verifique a chave de API ou a URL.";
     }
 }
 
 
-// ===== FUNÇÃO PARA MOSTRAR FILMES (Adaptado para TMDb) =====
-function exibirFilmes(filmes) {
-    listaResultados.innerHTML = ""; // limpa os resultados anteriores
+// =========================================================
+// 4. FUNÇÕES DE EXIBIÇÃO E PAGINAÇÃO (Mantidas)
+// =========================================================
 
+function exibirFilmes(filmes) {
+    listaResultados.innerHTML = ""; 
     if (!filmes || filmes.length === 0) return;
 
     filmes.forEach(filme => {
-        // Cria o container do card
         const div = document.createElement("div");
         div.classList.add("card");
 
-        // URL base para pôsteres do TMDb
         const base_poster_url = "https://image.tmdb.org/t/p/w300";
 
-        // Verifica se há um caminho de pôster e monta a URL completa
         const poster = filme.poster_path
             ? `${base_poster_url}${filme.poster_path}`
             : "https://via.placeholder.com/300x450?text=Sem+Poster";
 
-        // Monta o HTML do card (TMDb usa 'title' e 'release_date')
         const ano = filme.release_date ? filme.release_date.substring(0, 4) : 'N/A';
         
         div.innerHTML = `
@@ -115,19 +190,14 @@ function exibirFilmes(filmes) {
             <p>Ano: ${ano}</p>
         `;
 
-        // Adiciona o card dentro da lista
         listaResultados.appendChild(div);
     });
 }
 
-// ===== FUNÇÕES DE CONTROLE DE PAGINAÇÃO =====
 function atualizarPaginacao(total, atual) {
-    const totalPaginas = Math.ceil(total / 20); // 20 resultados por página no TMDb
+    const totalPaginas = Math.ceil(total / 20); 
 
-    // Habilita/Desabilita botão Anterior
     const anteriorDisabled = atual <= 1;
-    
-    // Habilita/Desabilita botão Próxima
     const proximaDisabled = atual >= totalPaginas || total === 0;
 
     desabilitarBotoesPaginacao(anteriorDisabled, proximaDisabled);

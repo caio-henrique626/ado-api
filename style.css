@@ -121,3 +121,45 @@ main {
     background-color: #bdc3c7;
     cursor: not-allowed;
 }
+/* Estilos para o NOVO Container de Filtros */
+.filters-container {
+    display: flex;
+    flex-wrap: wrap; /* Permite que os itens quebrem a linha em telas menores */
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #ecf0f1;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.filters-container label {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.filters-container input[type="number"],
+.filters-container select {
+    padding: 8px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 100px;
+}
+
+#botaoFiltrar {
+    padding: 10px 20px;
+    background-color: #2ecc71; /* Cor verde para destaque */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+#botaoFiltrar:hover {
+    background-color: #27ae60;
+}

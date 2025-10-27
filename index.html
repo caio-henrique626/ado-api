@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscador de Filmes OMDB</title>
+    <title>Buscador de Filmes TMDb com Filtros</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>🎬 Buscador de Filmes e atores</h1>
+        <h1>🎬 Buscador de Filmes</h1>
     </header>
 
     <main>
@@ -17,6 +17,26 @@
             <button id="botaoBusca">Buscar</button>
         </div>
 
+        <div class="filters-container">
+            <label for="filtroAno">Ano:</label>
+            <input type="number" id="filtroAno" min="1900" max="2050" placeholder="Ex: 2023">
+
+            <label for="filtroGenero">Gênero:</label>
+            <select id="filtroGenero">
+                <option value="">Todos os Gêneros</option>
+            </select>
+
+            <label for="filtroIdioma">Idioma Original:</label>
+            <select id="filtroIdioma">
+                <option value="">Todos os Idiomas</option>
+                <option value="en">Inglês (en)</option>
+                <option value="pt">Português (pt)</option>
+                <option value="es">Espanhol (es)</option>
+                <option value="fr">Francês (fr)</option>
+                </select>
+            
+            <button id="botaoFiltrar">Filtrar</button>
+        </div>
         <p id="mensagemStatus" class="status-message">Digite um filme e clique em Buscar!</p>
 
         <div id="listaResultados" class="results-grid">
